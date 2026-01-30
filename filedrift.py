@@ -5,8 +5,9 @@ from pathlib import Path
 import csv
 import time
 from collections import defaultdict
+from typing import Any
 
-def scan_directory(root_dir, subdirs_to_scan=None, verbose=False):
+def scan_directory(root_dir: str | Path, subdirs_to_scan: list[str] | None = None, verbose: bool = False) -> dict[str, Any]:
     """Scan directory and return file info. If subdirs_to_scan is provided, only scan those subdirs."""
     root = Path(root_dir)
     files = {}
@@ -62,7 +63,7 @@ def scan_directory(root_dir, subdirs_to_scan=None, verbose=False):
 
     return {'files': files, 'skipped': skipped, 'root_files': root_files}
 
-def get_top_level_subdirs(files_dict):
+def get_top_level_subdirs(files_dict: dict[str, dict[str, Any]]) -> list[str]:
     """Extract unique top-level subdirectories from files."""
     subdirs = set()
     for file_info in files_dict.values():
@@ -72,7 +73,7 @@ def get_top_level_subdirs(files_dict):
             subdirs.add(parts[0])
     return sorted(subdirs)
 
-def build_filename_index(target_files):
+def build_filename_index(target_files: dict[str, dict[str, Any]]) -> defaultdict:
     """Build index of target files by filename (case-insensitive)."""
     filename_index = defaultdict(list)
     for rel_path_lower, file_info in target_files.items():
@@ -80,7 +81,7 @@ def build_filename_index(target_files):
         filename_index[filename].append(file_info)
     return filename_index
 
-def find_missing_files(source_data, target_data, target_filename_index, source_filename_index):
+def find_missing_files(source_data: dict[str, Any], target_data: dict[str, Any], target_filename_index: defaultdict, source_filename_index: defaultdict) -> dict[str, Any]:
     """Find files that are only in source or have been moved."""
     source_files = source_data['files']
     target_files = target_data['files']
@@ -165,7 +166,7 @@ def find_missing_files(source_data, target_data, target_filename_index, source_f
 
     return {'only_on_source': only_on_source, 'in_both': in_both, 'moved_files': moved_files, 'duplicates_on_source': duplicates_on_source}
 
-def add_duplicate_groups(moved_files, duplicates_on_source):
+def add_duplicate_groups(moved_files: list[dict[str, Any]], duplicates_on_source: dict[tuple[int, str], list[str]]) -> None:
     """Add duplicate_group information to duplicate_on_source files."""
     for row in moved_files:
         if row['status'] == 'duplicate_on_source':
@@ -175,7 +176,7 @@ def add_duplicate_groups(moved_files, duplicates_on_source):
                 if duplicates:
                     row['duplicate_group'] = '; '.join(duplicates)
 
-def analyze_missing_directories(only_on_source, source_files):
+def analyze_missing_directories(only_on_source: list[dict[str, Any]], source_files: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
     """Analyze which source directories have all files missing."""
     dir_stats = {}
 
@@ -222,7 +223,7 @@ def analyze_missing_directories(only_on_source, source_files):
 
     return entirely_missing
 
-def dry_run(source_dir, target_dir, full_scan=False):
+def dry_run(source_dir: str, target_dir: str, full_scan: bool = False) -> None:
     """Show what would be scanned without actually scanning."""
     print("=" * 60)
     print("DRY RUN MODE")
@@ -278,7 +279,7 @@ def dry_run(source_dir, target_dir, full_scan=False):
     print("=" * 60)
     print("Dry run complete. Use without --dry-run to execute.")
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description='Smart duplicate finder - find files in source but not in target')
     parser.add_argument('--source', required=True, help='Source directory (smaller, e.g., USB)')
     parser.add_argument('--target', required=True, help='Target directory (larger, e.g., OneDrive or SMB)')

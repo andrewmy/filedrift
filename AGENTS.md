@@ -8,7 +8,7 @@ This is a Python utility for comparing files between directories. The main tool 
 
 ## Build/Lint/Test Commands
 
-This project uses plain Python with no external dependencies. Requires Python 3.7+.
+This project uses plain Python with no external dependencies. Requires Python 3.9+.
 
 ### Running the main script
 ```bash
@@ -26,6 +26,12 @@ python filedrift.py --source "/path/to/source" --target "/path/to/target" --dry-
 ### Running tests
 ```bash
 python test_filedrift.py
+```
+
+### Running linting
+```bash
+uv tool install ruff
+ruff check .
 ```
 
 ### Testing
@@ -86,6 +92,13 @@ for file in os.walk(source_dir):  # Use pathlib instead
 - Constants: `UPPER_SNAKE_CASE` (rarely used)
 - Dictionary keys: `snake_case` for clarity
 - CLI args: `kebab-case` (via argparse)
+
+### Type Hints
+- Add type hints to all function parameters and return values
+- Use modern built-in syntax: `dict[str, Any]`, `list[str]`, `str | None`
+- Use `str | Path` union type for path parameters that accept either format
+- Use `typing.Any` for dynamic types
+- Compatible with Python 3.9+
 
 ```python
 def scan_directory(root_dir, subdirs_to_scan=None):

@@ -38,7 +38,7 @@ A fast, intelligent file comparison tool that finds files present in a source di
 
 ## Installation
 
-No installation required. Requires Python 3.7+.
+No installation required. Requires Python 3.9+.
 
 ```bash
 # Clone or download filedrift.py
