@@ -4,7 +4,7 @@ This document provides guidelines for AI agents working on this codebase.
 
 ## Project Overview
 
-This is a Python utility for comparing files between directories. The main tool is `find_missing.py`, which intelligently scans directories to find files present in a source location but missing from a target location.
+This is a Python utility for comparing files between directories. The main tool is `filedrift.py`, which intelligently scans directories to find files present in a source location but missing from a target location.
 
 ## Build/Lint/Test Commands
 
@@ -12,25 +12,25 @@ This project uses plain Python with no external dependencies. Requires Python 3.
 
 ### Running the main script
 ```bash
-python find_missing.py --source "/path/to/source" --target "/path/to/target"
-python find_missing.py --source "/path/to/source" --target "/path/to/target" --dry-run
-python find_missing.py --source "/path/to/source" --target "/path/to/target" --full-scan
-python find_missing.py --source "/path/to/photos" --target "/path/to/backup/Pictures" --full-scan --exclude-high-confidence-moved
+python filedrift.py --source "/path/to/source" --target "/path/to/target"
+python filedrift.py --source "/path/to/source" --target "/path/to/target" --dry-run
+python filedrift.py --source "/path/to/source" --target "/path/to/target" --full-scan
+python filedrift.py --source "/path/to/photos" --target "/path/to/backup/Pictures" --full-scan --exclude-high-confidence-moved
 ```
 
 ### Dry-run mode (recommended before full scans)
 ```bash
-python find_missing.py --source "/path/to/source" --target "/path/to/target" --dry-run
+python filedrift.py --source "/path/to/source" --target "/path/to/target" --dry-run
 ```
 
 ### Running tests
 ```bash
-python test_find_missing.py
+python test_filedrift.py
 ```
 
 ### Testing
 
-The project includes `test_find_missing.py` with comprehensive tests:
+The project includes `test_filedrift.py` with comprehensive tests:
 
 **What's covered:**
 - **scan_directory()**: Tests directory scanning with subdirectory filtering
