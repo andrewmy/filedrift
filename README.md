@@ -1,4 +1,4 @@
-# Smart Duplicate Finder
+# FileDrift - Smart Duplicate Finder
 
 A fast, intelligent file comparison tool that finds files present in a source directory but missing from a target directory. Uses smart scanning to avoid full scans of large directories like OneDrive or SMB shares.
 
@@ -15,12 +15,33 @@ A fast, intelligent file comparison tool that finds files present in a source di
 - **Verbose Mode**: Detailed progress output for large scans
 - **Works with SMB Shares**: Compatible with network shares and local drives
 
+## Why This Tool?
+
+**Purpose-built for backup verification**
+- Focuses on finding missing files (source → target) rather than duplicates
+- Identifies files that haven't been copied, not files that exist multiple times
+
+**Metadata-only scanning**
+- Uses file path and size only, never reads file content
+- Critical for OneDrive and cloud sync: avoids triggering downloads of "placeholder" files
+- Much faster than content hashing
+
+**Lightweight & fast**
+- Single Python script with no GUI or dependencies
+- Scans 6,000+ files in ~1 second
+- No installation or configuration needed
+
+**Automatable**
+- Command-line interface with flags like `--dry-run` and `--verbose`
+- Fits into scheduled backup verification scripts
+- CSV output for custom filtering, sorting, and analysis
+
 ## Installation
 
 No installation required. Requires Python 3.7+.
 
 ```bash
-# Clone or download find_missing.py
+# Clone or download filedrift.py
 # Ensure Python is installed
 python --version
 ```
@@ -30,19 +51,19 @@ python --version
 ### Basic Usage
 
 ```bash
-python find_missing.py --source "/path/to/source" --target "/path/to/target"
+python filedrift.py --source "/path/to/source" --target "/path/to/target"
 ```
 
 ### With Custom Output File
 
 ```bash
-python find_missing.py --source "/path/to/source" --target "/path/to/target" --output "results.csv"
+python filedrift.py --source "/path/to/source" --target "/path/to/target" --output "results.csv"
 ```
 
 ### Dry-Run Mode (Preview)
 
 ```bash
-python find_missing.py --source "/path/to/source" --target "/path/to/target" --dry-run
+python filedrift.py --source "/path/to/source" --target "/path/to/target" --dry-run
 ```
 
 ### Full Scan Mode (For Reorganized Directories)
@@ -50,7 +71,7 @@ python find_missing.py --source "/path/to/source" --target "/path/to/target" --d
 When target directory has different structure (e.g., different subdirectory names), use full scan:
 
 ```bash
-python find_missing.py --source "/path/to/photos" --target "/path/to/backup/Pictures" --full-scan
+python filedrift.py --source "/path/to/photos" --target "/path/to/backup/Pictures" --full-scan
 ```
 
 ### Verbose Mode (Detailed Progress)
@@ -58,7 +79,7 @@ python find_missing.py --source "/path/to/photos" --target "/path/to/backup/Pict
 For large directories, see detailed scanning progress:
 
 ```bash
-python find_missing.py --source "F:\_PHOTO" --target "C:\Users\andre\OneDrive\Pictures" --full-scan --verbose
+python filedrift.py --source "F:\_PHOTO" --target "C:\Users\andre\OneDrive\Pictures" --full-scan --verbose
 ```
 
 ### Exclude High-Confidence Moved Files
@@ -66,7 +87,7 @@ python find_missing.py --source "F:\_PHOTO" --target "C:\Users\andre\OneDrive\Pi
 To focus on truly missing files and uncertain matches, exclude high-confidence moved files from CSV:
 
 ```bash
-python find_missing.py --source "/path/to/photos" --target "/path/to/backup/Pictures" --full-scan --exclude-high-confidence-moved
+python filedrift.py --source "/path/to/photos" --target "/path/to/backup/Pictures" --full-scan --exclude-high-confidence-moved
 ```
 
 **What this does:**
@@ -84,7 +105,7 @@ python find_missing.py --source "/path/to/photos" --target "/path/to/backup/Pict
 ### Network Share Example
 
 ```bash
-python find_missing.py --source "/path/to/data" --target "\\server\share\backup" --output "missing.csv"
+python filedrift.py --source "/path/to/data" --target "\\server\share\backup" --output "missing.csv"
 ```
 
 ## Command-Line Options
@@ -100,6 +121,8 @@ python find_missing.py --source "/path/to/data" --target "\\server\share\backup"
 | `--exclude-high-confidence-moved` | No | - | Exclude high-confidence moved files from CSV output |
 
 ## How It Works
+
+*Files moved, reorganized, no longer where expected, now revealed*
 
 ### Smart Scanning Algorithm (Default)
 
@@ -202,7 +225,7 @@ Photos/main.jpg,/path/to/source/Photos/main.jpg,1024000,/path/to/target/Photos/b
 Check if all files from USB drive are backed up to OneDrive:
 
 ```bash
-python find_missing.py --source "F:\OneDrive" --target "C:\Users\andre\OneDrive"
+python filedrift.py --source "F:\OneDrive" --target "C:\Users\andre\OneDrive"
 ```
 
 ### 2. Network Share Comparison
@@ -210,7 +233,7 @@ python find_missing.py --source "F:\OneDrive" --target "C:\Users\andre\OneDrive"
 Compare local files to network backup:
 
 ```bash
-python find_missing.py --source "/path/to/projects" --target "\\server\backups\Projects"
+python filedrift.py --source "/path/to/projects" --target "\\server\backups\Projects"
 ```
 
 ### 3. Partial Directory Sync
@@ -218,7 +241,7 @@ python find_missing.py --source "/path/to/projects" --target "\\server\backups\P
 Find files that need to be copied to target:
 
 ```bash
-python find_missing.py --source "/path/to/photos" --target "/path/to/pictures" --output "to_copy.csv"
+python filedrift.py --source "/path/to/photos" --target "/path/to/pictures" --output "to_copy.csv"
 ```
 
 ### 4. Finding Moved Files in Reorganized Directories
@@ -226,7 +249,7 @@ python find_missing.py --source "/path/to/photos" --target "/path/to/pictures" -
 When directory structures differ, find files that have been moved:
 
 ```bash
-python find_missing.py --source "F:\_PHOTO" --target "C:\Users\andre\OneDrive\Pictures" --full-scan --verbose
+python filedrift.py --source "F:\_PHOTO" --target "C:\Users\andre\OneDrive\Pictures" --full-scan --verbose
 ```
 
 ### 5. Dry-Run Before Scanning
@@ -234,7 +257,7 @@ python find_missing.py --source "F:\_PHOTO" --target "C:\Users\andre\OneDrive\Pi
 Preview what will be scanned before committing to large operations:
 
 ```bash
-python find_missing.py --source "/path/to/data" --target "/path/to/target" --dry-run
+python filedrift.py --source "/path/to/data" --target "/path/to/target" --dry-run
 ```
 
 ## Performance

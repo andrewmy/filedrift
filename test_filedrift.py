@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Tests for find_missing.py
+Tests for filedrift.py
 """
 import os
 import sys
@@ -10,7 +10,7 @@ import csv
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-import find_missing
+import filedrift
 
 def create_test_structure(base_dir):
     """Create test directory structure for testing."""
@@ -39,7 +39,7 @@ def create_test_structure(base_dir):
     # Directory with all files only on source
     os.makedirs(base_dir / "source" / "missing_dir", exist_ok=True)
     (base_dir / "source" / "missing_dir" / "file4.txt").write_text("missing")
-    (base_dir / "missing_dir" / "file5.txt").write_text("missing")
+    (base_dir / "source" / "missing_dir" / "file5.txt").write_text("missing")
 
 def test_scan_directory():
     """Test the scan_directory function."""
@@ -48,17 +48,17 @@ def test_scan_directory():
         create_test_structure(base)
         
         # Test scanning source
-        source_data = find_missing.scan_directory(base / "source")
-        assert len(source_data['files']) == 5, "Should find 5 files in source"
-        assert source_data['root_files'] == ['file4.txt'], "Root files not tracked"
+        source_data = filedrift.scan_directory(base / "source")
+        assert len(source_data['files']) == 7, f"Should find 7 files in source, found {len(source_data['files'])}"
+        assert set(source_data['root_files']) == {'file1.txt', 'file2.txt'}, f"Root files not tracked: {source_data['root_files']}"
         
         # Test scanning target with specific subdirs
-        target_data = find_missing.scan_directory(base / "target", subdirs_to_scan=['subdir'])
+        target_data = filedrift.scan_directory(base / "target", subdirs_to_scan=['subdir'])
         assert len(target_data['files']) == 1, "Should find 1 file in target subdir"
         assert 'subdir/file3.txt' in target_data['files'], "Should find moved file"
         
         # Test filename index building
-        target_filename_index = find_missing.build_filename_index(target_data['files'])
+        target_filename_index = filedrift.build_filename_index(target_data['files'])
         assert len(target_filename_index) == 1, "Should have 1 unique filename in index"
         
         return True
@@ -69,13 +69,13 @@ def test_find_missing_files():
         base = Path(temp_dir)
         create_test_structure(base)
         
-        source_data = find_missing.scan_directory(base / "source")
-        target_data = find_missing.scan_directory(base / "target", subdirs_to_scan=['subdir', 'other_location'])
+        source_data = filedrift.scan_directory(base / "source")
+        target_data = filedrift.scan_directory(base / "target", subdirs_to_scan=['subdir', 'other_location'])
         
-        target_filename_index = find_missing.build_filename_index(target_data['files'])
-        source_filename_index = find_missing.build_filename_index(source_data['files'])
+        target_filename_index = filedrift.build_filename_index(target_data['files'])
+        source_filename_index = filedrift.build_filename_index(source_data['files'])
         
-        results = find_missing.find_missing_files(source_data, target_data, target_filename_index, source_filename_index)
+        results = filedrift.find_missing_files(source_data, target_data, target_filename_index, source_filename_index)
         
         # Check that we get expected results
         assert len(results['only_on_source']) == 2, "Should have 2 files only on source"
@@ -108,16 +108,16 @@ def test_analyze_missing_directories():
         base = Path(temp_dir)
         create_test_structure(base)
         
-        source_data = find_missing.scan_directory(base / "source")
-        target_data = find_missing.scan_directory(base / "target")
+        source_data = filedrift.scan_directory(base / "source")
+        target_data = filedrift.scan_directory(base / "target")
         
-        results = find_missing.find_missing_files(
+        results = filedrift.find_missing_files(
             source_data, target_data, 
-            find_missing.build_filename_index(target_data['files']),
-            find_missing.build_filename_index(source_data['files'])
+            filedrift.build_filename_index(target_data['files']),
+            filedrift.build_filename_index(source_data['files'])
         )
         
-        entirely_missing = find_missing.analyze_missing_directories(
+        entirely_missing = filedrift.analyze_missing_directories(
             results['only_on_source'], 
             source_data['files']
         )
@@ -143,15 +143,15 @@ def test_csv_output():
         output_file = base / "test_output.csv"
         
         # Run scan
-        source_data = find_missing.scan_directory(base / "source")
-        target_data = find_missing.scan_directory(base / "target")
+        source_data = filedrift.scan_directory(base / "source")
+        target_data = filedrift.scan_directory(base / "target")
         
-        results = find_missing.find_missing_files(
+        results = filedrift.find_missing_files(
             source_data, target_data,
-            find_missing.build_filename_index(target_data['files']),
-            find_missing.build_filename_index(source_data['files'])
+            filedrift.build_filename_index(target_data['files']),
+            filedrift.build_filename_index(source_data['files'])
         )
-        find_missing.add_duplicate_groups(results['moved_files'], results['duplicates_on_source'])
+        filedrift.add_duplicate_groups(results['moved_files'], results['duplicates_on_source'])
         
         interesting_rows = results['only_on_source'] + results['moved_files']
         
@@ -194,13 +194,13 @@ def test_exclude_high_confidence_flag():
         (base / "source" / "high_conf" / "file.txt").write_text("high conf")
         (base / "target" / "high_conf_loc" / "file.txt").write_text("high conf")
         
-        source_data = find_missing.scan_directory(base / "source")
-        target_data = find_missing.scan_directory(base / "target")
+        source_data = filedrift.scan_directory(base / "source")
+        target_data = filedrift.scan_directory(base / "target")
         
-        results = find_missing.find_missing_files(
+        results = filedrift.find_missing_files(
             source_data, target_data,
-            find_missing.build_filename_index(target_data['files']),
-            find_missing.build_filename_index(source_data['files'])
+            filedrift.build_filename_index(target_data['files']),
+            filedrift.build_filename_index(source_data['files'])
         )
         
         # Without exclude flag, all rows written
@@ -247,16 +247,16 @@ def run_all_tests():
             result = test_func()
             if result:
                 passed.append(test_name)
-                print(f"✓ {test_name}")
+                print(f"[PASS] {test_name}")
             else:
                 failed.append(test_name)
-                print(f"✗ {test_name}")
+                print(f"[FAIL] {test_name}")
         except AssertionError as e:
             failed.append(test_name)
-            print(f"✗ {test_name}: {str(e)}")
+            print(f"[FAIL] {test_name}: {str(e)}")
         except Exception as e:
             failed.append(test_name)
-            print(f"✗ {test_name}: {str(e)}")
+            print(f"[FAIL] {test_name}: {str(e)}")
     
     print()
     print("=" * 60)
