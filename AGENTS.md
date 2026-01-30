@@ -60,10 +60,11 @@ The project includes `test_filedrift.py` with comprehensive tests:
 ```python
 #!/usr/bin/env python3
 import argparse        # CLI argument parsing
-from pathlib import Path  # Always use Path for file operations
 import csv
 import time
 from collections import defaultdict
+from pathlib import Path  # Always use Path for file operations
+from typing import Any    # For type hints
 ```
 - Use `from pathlib import Path` for all file system operations
 - Keep imports in alphabetical order after shebang
@@ -100,12 +101,12 @@ for file in os.walk(source_dir):  # Use pathlib instead
 - Use `typing.Any` for dynamic types
 - Compatible with Python 3.9+
 
-```python
-def scan_directory(root_dir, subdirs_to_scan=None):
-    files = {}
-    skipped_count = 0
-    return {'files': files, 'skipped': skipped_count}
-```
+### Linting
+- Use ruff for linting (installed via `uv tool install ruff`)
+- Run with `ruff check .`
+- Configuration in `pyproject.toml`
+- Line length set to 130, E501 (line too long) ignored to allow long type signatures and help strings
+- Code style follows: E, W, F, I, B, C4, UP ruff rules
 
 ### Data Structures
 - Use dictionaries for file metadata with clear keys: `path`, `size`, `relative_path`

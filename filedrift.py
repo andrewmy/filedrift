@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 import argparse
-import sys
-from pathlib import Path
 import csv
 import time
 from collections import defaultdict
+from pathlib import Path
 from typing import Any
+
 
 def scan_directory(root_dir: str | Path, subdirs_to_scan: list[str] | None = None, verbose: bool = False) -> dict[str, Any]:
     """Scan directory and return file info. If subdirs_to_scan is provided, only scan those subdirs."""
@@ -76,7 +76,7 @@ def get_top_level_subdirs(files_dict: dict[str, dict[str, Any]]) -> list[str]:
 def build_filename_index(target_files: dict[str, dict[str, Any]]) -> defaultdict:
     """Build index of target files by filename (case-insensitive)."""
     filename_index = defaultdict(list)
-    for rel_path_lower, file_info in target_files.items():
+    for _rel_path_lower, file_info in target_files.items():
         filename = Path(file_info['relative_path']).name.lower()
         filename_index[filename].append(file_info)
     return filename_index
@@ -215,7 +215,7 @@ def analyze_missing_directories(only_on_source: list[dict[str, Any]], source_fil
             dir_stats[dir_key]['total_files'] += 1
 
     entirely_missing = []
-    for dir_key, stats in dir_stats.items():
+    for _dir_key, stats in dir_stats.items():
         if stats['missing_files'] == stats['total_files'] and stats['total_files'] > 0:
             entirely_missing.append(stats)
 
@@ -253,7 +253,7 @@ def dry_run(source_dir: str, target_dir: str, full_scan: bool = False) -> None:
         target_root = Path(target_dir)
         all_target_subdirs = [d.name for d in target_root.iterdir() if d.is_dir()]
         print(f"Target contains {len(all_target_subdirs)} subdirectories")
-        print(f"Estimated total files to scan: Full directory tree")
+        print("Estimated total files to scan: Full directory tree")
     else:
         target_root = Path(target_dir)
         existing_subdirs = []
@@ -294,9 +294,9 @@ def main() -> None:
     if args.dry_run:
         dry_run(args.source, args.target, args.full_scan)
         return
-    
+
     start_time = time.time()
-    
+
     print("=" * 60)
     print("SMART DUPLICATE FINDER")
     print("=" * 60)
@@ -304,24 +304,24 @@ def main() -> None:
     print(f"Target: {args.target}")
     print(f"Output: {args.output}")
     print()
-    
+
     phase1_start = time.time()
     print("Phase 1: Scanning source directory...")
     source_data = scan_directory(args.source)
     source_files = source_data['files']
     phase1_time = time.time() - phase1_start
-    
+
     if not source_files:
         print("  Error: No files found in source directory!")
         return
-    
+
     print(f"  Found {len(source_files)} files, skipped {source_data['skipped']}")
     print(f"  Time: {phase1_time:.1f} seconds")
     print()
-    
+
     subdirs = get_top_level_subdirs(source_files)
     root_files = [f for f in source_files.values() if len(Path(f['relative_path']).parts) == 1]
-    
+
     print(f"  Root files: {len(root_files)}")
     print(f"  Subdirectories: {len(subdirs)}")
     print(f"  Top-level subdirs: {', '.join(subdirs[:10])}")
@@ -360,7 +360,7 @@ def main() -> None:
 
     target_files = target_data['files']
     phase2_time = time.time() - phase2_start
-    
+
     print(f"  Scanned {len(target_files)} files, skipped {target_data['skipped']}")
     print(f"  Time: {phase2_time:.1f} seconds")
     print()
@@ -375,12 +375,12 @@ def main() -> None:
 
     print(f"  Time: {phase3_time:.1f} seconds")
     print()
-    
+
     phase4_start = time.time()
     print("Phase 4: Writing results...")
 
     interesting_rows = results['only_on_source'] + results['moved_files']
-    
+
     if args.exclude_high_confidence_moved:
         interesting_rows = [r for r in interesting_rows if not (r['status'] == 'moved' and r['confidence'] == 'high')]
         excluded_count = len(results['moved_files']) - len(interesting_rows)
@@ -399,7 +399,7 @@ def main() -> None:
     print(f"  Written {len(interesting_rows)} rows to {args.output}")
     print(f"  Time: {phase4_time:.1f} seconds")
     print()
-    
+
     total_time = time.time() - start_time
 
     moved_high_conf = [r for r in results['moved_files'] if r['confidence'] == 'high']
@@ -436,7 +436,7 @@ def main() -> None:
                 try:
                     print(f"    - {file}")
                 except UnicodeEncodeError:
-                    print(f"    - <file with unicode characters>")
+                    print("    - <file with unicode characters>")
 
     if args.exclude_high_confidence_moved:
         excluded_high_conf = len([r for r in results['moved_files'] if r['confidence'] == 'high'])

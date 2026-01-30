@@ -2,11 +2,10 @@
 """
 Tests for filedrift.py
 """
+import csv
 import os
 import sys
 import tempfile
-import shutil
-import csv
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -16,20 +15,20 @@ import filedrift
 def create_test_structure(base_dir):
     """Create test directory structure for testing."""
     base = Path(base_dir)
-    
+
     # Source directory
     source = base / "source"
     target = base / "target"
     os.makedirs(source, exist_ok=True)
     os.makedirs(target, exist_ok=True)
-    
+
     # Files that match in both
     (source / "file1.txt").write_text("content1")
     (target / "file1.txt").write_text("content1")
-    
+
     # Files only on source
     (source / "file2.txt").write_text("content2")
-    
+
     # Files in source subdirectory
     source_sub = source / "subdir"
     target_sub = target / "other_location"
@@ -37,12 +36,12 @@ def create_test_structure(base_dir):
     os.makedirs(target_sub, exist_ok=True)
     (source_sub / "file3.txt").write_text("content3")
     (target_sub / "file3.txt").write_text("content3")
-    
+
     # Moved file with same name, different path
     (source / "file4.txt").write_text("content4")
     (target / "moved" / "file4.txt").parent.mkdir(exist_ok=True)
     (target / "moved" / "file4.txt").write_text("content4")
-    
+
     # Duplicate files on source (same name, same size, different paths)
     dup1 = source / "dup1"
     dup2 = source / "dup2"
@@ -50,13 +49,13 @@ def create_test_structure(base_dir):
     os.makedirs(dup2, exist_ok=True)
     (dup1 / "dupe.txt").write_text("duppe content")
     (dup2 / "dupe.txt").write_text("duppe content")
-    
+
     # Directory with all files only on source
     missing_dir = source / "missing_dir"
     os.makedirs(missing_dir, exist_ok=True)
     (missing_dir / "file5.txt").write_text("missing")
     (missing_dir / "file6.txt").write_text("missing2")
-    
+
     # Another subdir in source but not in target
     another_dir = source / "another_dir"
     os.makedirs(another_dir, exist_ok=True)
@@ -68,21 +67,21 @@ def test_scan_directory():
     with tempfile.TemporaryDirectory() as temp_dir:
         base = Path(temp_dir)
         create_test_structure(base)
-        
+
         # Test scanning source (full scan)
         source_data = filedrift.scan_directory(base / "source")
         assert len(source_data['files']) >= 7, f"Should find at least 7 files in source, found {len(source_data['files'])}"
         assert source_data['skipped'] == 0, "Should not skip any files"
         assert len(source_data['root_files']) == 3, f"Should have 3 root files (file1.txt, file2.txt, file4.txt), found {len(source_data['root_files'])}"
-        
+
         # Test scanning with subdirs_to_scan
         target_data = filedrift.scan_directory(base / "target", subdirs_to_scan=['other_location', 'moved'])
         assert len(target_data['files']) >= 1, "Should find at least 1 file in target"
-        
+
         # Test scanning non-existent directory
         result = filedrift.scan_directory(base / "nonexistent")
         assert len(result['files']) == 0, "Should return empty files dict for non-existent dir"
-        
+
         return True
 
 
@@ -95,13 +94,13 @@ def test_get_top_level_subdirs():
         'other/file.txt': {'relative_path': 'other/file.txt', 'size': 400},
         'deep/nested/file.txt': {'relative_path': 'deep/nested/file.txt', 'size': 500},
     }
-    
+
     subdirs = filedrift.get_top_level_subdirs(files_dict)
     assert len(subdirs) == 3, f"Should find 3 top-level subdirs, found {len(subdirs)}"
     assert 'subdir' in subdirs, "Should include 'subdir'"
     assert 'other' in subdirs, "Should include 'other'"
     assert 'deep' in subdirs, "Should include 'deep'"
-    
+
     return True
 
 
@@ -112,13 +111,13 @@ def test_build_filename_index():
         'dir2/file.txt': {'relative_path': 'dir2/file.txt', 'path': '/dir2/file.txt', 'size': 200},
         'other.txt': {'relative_path': 'other.txt', 'path': '/other.txt', 'size': 300},
     }
-    
+
     index = filedrift.build_filename_index(files_dict)
     assert len(index) == 2, f"Should have 2 unique filenames, found {len(index)}"
     assert 'file.txt' in index, "Should index 'file.txt'"
     assert len(index['file.txt']) == 2, "Should have 2 files named 'file.txt'"
     assert 'other.txt' in index, "Should index 'other.txt'"
-    
+
     return True
 
 
@@ -127,9 +126,9 @@ def test_find_missing_files():
     with tempfile.TemporaryDirectory() as temp_dir:
         base = Path(temp_dir)
         create_test_structure(base)
-        
+
         source_data = filedrift.scan_directory(base / "source")
-        
+
         # Create matching target structure
         target = base / "target"
         (target / "file1.txt").write_text("content1")
@@ -137,22 +136,22 @@ def test_find_missing_files():
         (target / "moved" / "file4.txt").write_text("content4")
         (target / "dup1" / "dupe.txt").parent.mkdir(exist_ok=True)
         (target / "dup1" / "dupe.txt").write_text("duppe content")
-        
+
         target_data = filedrift.scan_directory(base / "target", subdirs_to_scan=['other_location', 'moved', 'dup1'])
         target_filename_index = filedrift.build_filename_index(target_data['files'])
         source_filename_index = filedrift.build_filename_index(source_data['files'])
-        
+
         results = filedrift.find_missing_files(source_data, target_data, target_filename_index, source_filename_index)
-        
+
         assert 'only_on_source' in results, "Should have 'only_on_source' key"
         assert 'in_both' in results, "Should have 'in_both' key"
         assert 'moved_files' in results, "Should have 'moved_files' key"
         assert 'duplicates_on_source' in results, "Should have 'duplicates_on_source' key"
-        
+
         assert len(results['in_both']) >= 1, "Should have at least 1 file in both locations"
         assert len(results['only_on_source']) >= 1, "Should have at least 1 file only on source"
         assert len(results['moved_files']) >= 1, "Should have at least 1 moved file"
-        
+
         return True
 
 
@@ -161,23 +160,23 @@ def test_add_duplicate_groups():
     duplicates_on_source = {
         (12, 'dupe.txt'): ['dup1/dupe.txt', 'dup2/dupe.txt']
     }
-    
+
     moved_files = [
         {'relative_path': 'dup1/dupe.txt', 'status': 'duplicate_on_source', 'source_size': 12, 'duplicate_group': ''},
         {'relative_path': 'dup2/dupe.txt', 'status': 'duplicate_on_source', 'source_size': 12, 'duplicate_group': ''},
         {'relative_path': 'other.txt', 'status': 'moved', 'source_size': 100, 'duplicate_group': ''},
     ]
-    
+
     filedrift.add_duplicate_groups(moved_files, duplicates_on_source)
-    
+
     dup1 = [f for f in moved_files if f['relative_path'] == 'dup1/dupe.txt'][0]
     dup2 = [f for f in moved_files if f['relative_path'] == 'dup2/dupe.txt'][0]
     other = [f for f in moved_files if f['relative_path'] == 'other.txt'][0]
-    
+
     assert 'dup2/dupe.txt' in dup1['duplicate_group'], "dup1 should reference dup2"
     assert 'dup1/dupe.txt' in dup2['duplicate_group'], "dup2 should reference dup1"
     assert other['duplicate_group'] == '', "non-duplicate should have empty group"
-    
+
     return True
 
 
@@ -190,24 +189,24 @@ def test_analyze_missing_directories():
         'dir2/file4.txt': {'relative_path': 'dir2/file4.txt', 'size': 400},
         'dir2/file5.txt': {'relative_path': 'dir2/file5.txt', 'size': 500},
     }
-    
+
     only_on_source = [
         {'relative_path': 'dir1/file2.txt', 'source_size': 200},
         {'relative_path': 'dir1/file3.txt', 'source_size': 300},
         {'relative_path': 'dir2/file4.txt', 'source_size': 400},
         {'relative_path': 'file1.txt', 'source_size': 100},
     ]
-    
+
     entirely_missing = filedrift.analyze_missing_directories(only_on_source, source_files)
-    
+
     assert len(entirely_missing) >= 2, f"Should find at least 2 entirely missing dirs, found {len(entirely_missing)}"
-    
+
     # Check that dir1 is entirely missing (all 2 files are missing)
     dir1_missing = [d for d in entirely_missing if 'dir1' in d['name']]
     assert len(dir1_missing) == 1, "dir1 should be marked as entirely missing"
     assert dir1_missing[0]['missing_files'] == 2, "dir1 should have 2 missing files"
     assert dir1_missing[0]['missing_size'] == 500, "dir1 should have 500 missing bytes"
-    
+
     return True
 
 
@@ -216,7 +215,7 @@ def test_csv_output():
     with tempfile.TemporaryDirectory() as temp_dir:
         base = Path(temp_dir)
         output_csv = base / "test_output.csv"
-        
+
         test_data = [
             {
                 'relative_path': 'test/file.txt',
@@ -231,24 +230,24 @@ def test_csv_output():
                 'duplicate_group': ''
             }
         ]
-        
+
         with open(output_csv, 'w', newline='', encoding='utf-8') as csvfile:
             fieldnames = ['relative_path', 'source_path', 'source_size', 'target_path', 'target_size',
                          'found_at_path', 'match_type', 'confidence', 'status', 'duplicate_group']
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(test_data)
-        
+
         # Verify CSV was created and has correct content
         assert output_csv.exists(), "CSV file should be created"
-        
-        with open(output_csv, 'r', encoding='utf-8') as csvfile:
+
+        with open(output_csv, encoding='utf-8') as csvfile:
             reader = csv.DictReader(csvfile)
             rows = list(reader)
             assert len(rows) == 1, "Should have 1 data row"
             assert rows[0]['relative_path'] == 'test/file.txt', "Should preserve relative_path"
             assert rows[0]['status'] == 'only_on_source', "Should preserve status"
-        
+
         return True
 
 
@@ -260,16 +259,16 @@ def test_exclude_high_confidence_moved():
         {'status': 'moved', 'confidence': 'medium'},
         {'status': 'duplicate_on_source', 'confidence': 'high'},
     ]
-    
+
     # This is the actual logic used in filedrift.py line 384
     filtered = [r for r in rows if not (r['status'] == 'moved' and r['confidence'] == 'high')]
-    
+
     # duplicate_on_source is NOT moved, so it should be kept
     assert len(filtered) == 3, f"Should have 3 rows after filtering (only_on_source, moved medium, duplicate_on_source), found {len(filtered)}"
     assert any(r['status'] == 'only_on_source' for r in filtered), "Should keep only_on_source"
     assert any(r['status'] == 'moved' and r['confidence'] == 'medium' for r in filtered), "Should keep medium-confidence moved"
     assert any(r['status'] == 'duplicate_on_source' for r in filtered), "Should keep duplicate_on_source"
-    
+
     return True
 
 
@@ -281,27 +280,27 @@ def test_case_insensitive_matching():
         target = base / "target"
         os.makedirs(source, exist_ok=True)
         os.makedirs(target, exist_ok=True)
-        
+
         # Create same file with different case
         (source / "File.TXT").write_text("content")
         (target / "file.txt").write_text("content")
-        
+
         source_data = filedrift.scan_directory(base / "source")
         target_data = filedrift.scan_directory(base / "target")
-        
+
         # Both paths normalized to lowercase, so they match exactly
         assert 'file.txt' in source_data['files'], "Source file should be normalized to lowercase"
         assert 'file.txt' in target_data['files'], "Target file should be normalized to lowercase"
-        
+
         target_filename_index = filedrift.build_filename_index(target_data['files'])
         source_filename_index = filedrift.build_filename_index(source_data['files'])
-        
+
         results = filedrift.find_missing_files(source_data, target_data, target_filename_index, source_filename_index)
-        
+
         # Should find file in both (exact path match after normalization)
         assert len(results['in_both']) == 1, "Should find file in both locations after path normalization"
         assert len(results['only_on_source']) == 0, "Should not have any files only on source"
-        
+
         return True
 
 
@@ -318,10 +317,10 @@ def run_all_tests():
         ("Exclude high-confidence moved flag", test_exclude_high_confidence_moved),
         ("Case-insensitive matching", test_case_insensitive_matching),
     ]
-    
+
     passed = []
     failed = []
-    
+
     for test_name, test_func in tests:
         try:
             result = test_func()
@@ -337,15 +336,15 @@ def run_all_tests():
         except Exception as e:
             failed.append(test_name)
             print(f"[FAIL] {test_name}: {str(e)}")
-    
+
     print()
     print("=" * 60)
     print("TEST RESULTS")
     print("=" * 60)
     print(f"Passed: {len(passed)}/{len(tests)}")
-    
+
     if failed:
-        print(f"\nFailed tests:")
+        print("\nFailed tests:")
         for test in failed:
             print(f"  - {test}")
         return False
