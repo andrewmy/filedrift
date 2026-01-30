@@ -207,13 +207,17 @@ def add_duplicate_groups(moved_files: list[dict[str, Any]], duplicates_on_source
 
 
 def analyze_missing_directories(
-    only_on_source: list[dict[str, Any]], source_files: dict[str, dict[str, Any]]
+    only_on_source: list[dict[str, Any]],
+    moved_files: list[dict[str, Any]],
+    in_both: list[dict[str, Any]],
+    source_files: dict[str, dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    """Analyze which source directories have all files missing."""
+    """Analyze which source directories have all files missing. Files found in moved_files or in_both are not counted as missing."""
     dir_stats = {}
+    found_files = {r["relative_path"].lower() for r in moved_files + in_both}
 
-    for row in only_on_source:
-        rel_path = row["relative_path"]
+    for rel_path_lower in source_files:
+        rel_path = source_files[rel_path_lower]["relative_path"]
         parts = Path(rel_path).parts
 
         if len(parts) == 1:
@@ -226,20 +230,11 @@ def analyze_missing_directories(
         if dir_key not in dir_stats:
             dir_stats[dir_key] = {"name": dir_name, "missing_files": 0, "missing_size": 0, "total_files": 0}
 
-        dir_stats[dir_key]["missing_files"] += 1
-        dir_stats[dir_key]["missing_size"] += int(row["source_size"])
+        dir_stats[dir_key]["total_files"] += 1
 
-    for rel_path_lower in source_files:
-        rel_path = source_files[rel_path_lower]["relative_path"]
-        parts = Path(rel_path).parts
-
-        if len(parts) == 1:
-            dir_key = "ROOT"
-        else:
-            dir_key = "/".join(parts[:-1])
-
-        if dir_key in dir_stats:
-            dir_stats[dir_key]["total_files"] += 1
+        if rel_path_lower not in found_files:
+            dir_stats[dir_key]["missing_files"] += 1
+            dir_stats[dir_key]["missing_size"] += source_files[rel_path_lower]["size"]
 
     entirely_missing = []
     for _dir_key, stats in dir_stats.items():
@@ -495,7 +490,9 @@ def main() -> None:
             f"Note: {excluded_high_conf} high-confidence moved files excluded from CSV output (use --exclude-high-confidence-moved to disable)"
         )
 
-    entirely_missing_dirs = analyze_missing_directories(results["only_on_source"], source_files)
+    entirely_missing_dirs = analyze_missing_directories(
+        results["only_on_source"], results["moved_files"], results["in_both"], source_files
+    )
 
     if entirely_missing_dirs:
         print()

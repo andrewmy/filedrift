@@ -198,7 +198,10 @@ def test_analyze_missing_directories():
         {"relative_path": "file1.txt", "source_size": 100},
     ]
 
-    entirely_missing = filedrift.analyze_missing_directories(only_on_source, source_files)
+    moved_files = []
+    in_both = []
+
+    entirely_missing = filedrift.analyze_missing_directories(only_on_source, moved_files, in_both, source_files)
 
     assert len(entirely_missing) >= 2, f"Should find at least 2 entirely missing dirs, found {len(entirely_missing)}"
 
@@ -400,8 +403,10 @@ def test_ignored_files_not_in_missing_dirs():
 
         # Simulate only_on_source with just the normal file
         only_on_source = [{"relative_path": "test_dir/normal.txt", "source_size": 13}]
+        moved_files = []
+        in_both = []
 
-        entirely_missing = filedrift.analyze_missing_directories(only_on_source, source_data["files"])
+        entirely_missing = filedrift.analyze_missing_directories(only_on_source, moved_files, in_both, source_data["files"])
 
         # test_dir should be marked as entirely missing (1 of 1 real file is missing)
         test_dir_missing = [d for d in entirely_missing if "test_dir" in d["name"]]
@@ -414,6 +419,40 @@ def test_ignored_files_not_in_missing_dirs():
         assert len(only_ignored_missing) == 0, "only_ignored_dir should not appear (contains only ignored files)"
 
         return True
+
+
+def test_moved_files_not_counted_as_missing_dirs():
+    """Test that directories with moved files are not marked as entirely missing."""
+    source_files = {
+        "dir1/file1.txt": {"relative_path": "dir1/file1.txt", "size": 100},
+        "dir1/file2.txt": {"relative_path": "dir1/file2.txt", "size": 200},
+        "dir2/file3.txt": {"relative_path": "dir2/file3.txt", "size": 300},
+    }
+
+    # All files in dir1 are moved (found at different path in target)
+    moved_files = [
+        {"relative_path": "dir1/file1.txt", "source_size": 100},
+        {"relative_path": "dir1/file2.txt", "source_size": 200},
+    ]
+
+    # Only dir2 has a file that's truly missing
+    only_on_source = [{"relative_path": "dir2/file3.txt", "source_size": 300}]
+
+    in_both = []
+
+    entirely_missing = filedrift.analyze_missing_directories(only_on_source, moved_files, in_both, source_files)
+
+    # dir1 should NOT be marked as entirely missing (all files were found, just moved)
+    dir1_missing = [d for d in entirely_missing if "dir1" in d["name"]]
+    assert len(dir1_missing) == 0, "dir1 should not be marked as missing (all files were moved)"
+
+    # dir2 should be marked as entirely missing (its file is truly missing)
+    dir2_missing = [d for d in entirely_missing if "dir2" in d["name"]]
+    assert len(dir2_missing) == 1, "dir2 should be marked as entirely missing"
+    assert dir2_missing[0]["missing_files"] == 1, "dir2 should have 1 missing file"
+    assert dir2_missing[0]["total_files"] == 1, "dir2 should have 1 total file"
+
+    return True
 
 
 def run_all_tests():
@@ -431,6 +470,7 @@ def run_all_tests():
         ("Should ignore file function", test_should_ignore_file),
         ("Ignored files not scanned", test_ignored_files_not_scanned),
         ("Ignored files not in missing dirs", test_ignored_files_not_in_missing_dirs),
+        ("Moved files not counted as missing dirs", test_moved_files_not_counted_as_missing_dirs),
     ]
 
     passed = []
