@@ -30,9 +30,17 @@ python test_filedrift.py
 
 ### Running linting
 ```bash
-uv tool install ruff
-ruff check .
+just lint
 ```
+
+### Running CI (all checks)
+```bash
+just ci
+```
+
+**Note**: To use `just` commands, install the `just` task runner. Alternatively:
+- Lint: `ruff check .` (install via `uv tool install ruff`)
+- Test: `python test_filedrift.py`
 
 ### Testing
 
@@ -45,6 +53,8 @@ The project includes `test_filedrift.py` with comprehensive tests:
 - **CSV output generation**: Tests CSV structure and content
 - **--exclude-high-confidence-moved flag**: Tests filtering of high-confidence moved files
 - **Edge cases**: Unicode filenames, root files, partial directory matches
+- **should_ignore_file()**: Tests that .DS_Store and Thumbs.db are ignored (case-insensitive)
+- **Ignored files**: Tests that ignored files are not scanned and not counted in missing directories
 
 **How tests work:**
 - Creates temporary test directory structures
@@ -229,11 +239,19 @@ print(f"  Time: {phase1_time:.1f} seconds")
 
 ## When Making Changes
 
+**IMPORTANT: Test-Driven Development**
+- Before making any code changes, write a failing test first
+- Run the test to confirm it fails
+- Then implement the fix/feature
+- Run the test again to confirm it passes
+- Run `just ci` to ensure all tests and linting pass
+
 1. Test with `--dry-run` first to verify scan plan
 2. Run on small test directories before large directories
 3. Verify CSV output has correct structure
 4. Check that case-insensitive matching works correctly
 5. Ensure performance remains acceptable (< 2 seconds for typical usage)
+6. **After making changes, always run `just ci` to verify tests and linting pass**
 
 ## Common Patterns in This Codebase
 

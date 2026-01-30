@@ -450,6 +450,37 @@ Results saved to: photo_missing.csv
 
 MIT License - Feel free to use and modify as needed.
 
+## Development
+
+### Running Tests and Linting
+
+The project uses `just` for task automation:
+
+```bash
+# Run all checks (lint + test)
+just ci
+
+# Run linting only
+just lint
+
+# Run tests only
+just test
+```
+
+Alternatively, without `just`:
+```bash
+# Lint
+ruff check .
+
+# Test
+python test_filedrift.py
+```
+
 ## Contributing
 
 Suggestions and improvements welcome!
+
+**Before submitting changes:**
+- Run `just ci` to ensure all tests and linting pass
+- Test with `--dry-run` before full scans
+- Verify CSV output has correct structure
