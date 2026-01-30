@@ -295,11 +295,12 @@ def dry_run(source_dir: str, target_dir: str, full_scan: bool = False) -> None:
         print()
         print(f"Subdirectories to scan on target: {len(existing_subdirs)}")
         print(f"Subdirectories not on target: {len(missing_subdirs)}")
+        missing_subdirs_lower = {d.lower() for d in missing_subdirs}
         missing_count = sum(
             1
             for f in source_files.values()
-            if len(Path(f["relative_path"]).parts) > 0
-            and Path(f["relative_path"]).parts[0].lower() in [d.lower() for d in missing_subdirs]
+            if len(Path(f["relative_path"]).parts) > 1
+            and Path(f["relative_path"]).parts[0].lower() in missing_subdirs_lower
         )
         print(f"Estimated target files to scan: ~{len(source_files) - missing_count}")
 
@@ -415,10 +416,11 @@ def main() -> None:
     print("Phase 4: Writing results...")
 
     interesting_rows = results["only_on_source"] + results["moved_files"]
+    moved_high_conf_rows = [r for r in results["moved_files"] if r["status"] == "moved" and r["confidence"] == "high"]
 
     if args.exclude_high_confidence_moved:
         interesting_rows = [r for r in interesting_rows if not (r["status"] == "moved" and r["confidence"] == "high")]
-        excluded_count = len(results["moved_files"]) - len(interesting_rows)
+        excluded_count = len(moved_high_conf_rows)
         print(f"  Excluding {excluded_count} high-confidence moved files from CSV output")
 
     with open(args.output, "w", newline="", encoding="utf-8") as csvfile:
@@ -484,10 +486,12 @@ def main() -> None:
                     print("    - <file with unicode characters>")
 
     if args.exclude_high_confidence_moved:
-        excluded_high_conf = len([r for r in results["moved_files"] if r["confidence"] == "high"])
+        excluded_high_conf = len(moved_high_conf_rows)
         print()
         print(
-            f"Note: {excluded_high_conf} high-confidence moved files excluded from CSV output (use --exclude-high-confidence-moved to disable)"
+            "Note: "
+            f"{excluded_high_conf} high-confidence moved files excluded from CSV output "
+            "(use without --exclude-high-confidence-moved to include)"
         )
 
     entirely_missing_dirs = analyze_missing_directories(

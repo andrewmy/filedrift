@@ -1,7 +1,7 @@
 lint:
-    ruff check .
+    uv run ruff check .
 
 test:
-    python test_filedrift.py
+    uv run python test_filedrift.py
 
 ci: lint test

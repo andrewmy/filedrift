@@ -41,6 +41,7 @@ just ci
 **Note**: To use `just` commands, install the `just` task runner. Alternatively:
 - Lint: `ruff check .` (install via `uv tool install ruff`)
 - Test: `python test_filedrift.py`
+**Note**: If `uv` cache permissions fail in your environment, run `UV_CACHE_DIR=/tmp/uv-cache just ci`.
 
 ### Testing
 

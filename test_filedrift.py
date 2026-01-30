@@ -3,8 +3,11 @@
 Tests for filedrift.py
 """
 
+import contextlib
 import csv
+import io
 import os
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -81,8 +84,9 @@ def test_scan_directory():
         target_data = filedrift.scan_directory(base / "target", subdirs_to_scan=["other_location", "moved"])
         assert len(target_data["files"]) >= 1, "Should find at least 1 file in target"
 
-        # Test scanning non-existent directory
-        result = filedrift.scan_directory(base / "nonexistent")
+        # Test scanning non-existent directory (suppress expected error output)
+        with contextlib.redirect_stdout(io.StringIO()):
+            result = filedrift.scan_directory(base / "nonexistent")
         assert len(result["files"]) == 0, "Should return empty files dict for non-existent dir"
 
         return True
@@ -288,6 +292,131 @@ def test_exclude_high_confidence_moved():
     return True
 
 
+def test_exclude_high_confidence_moved_count_in_output():
+    """Test excluded count in stdout when --exclude-high-confidence-moved is used."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        base = Path(temp_dir)
+        source = base / "source"
+        target = base / "target"
+        os.makedirs(source, exist_ok=True)
+        os.makedirs(target, exist_ok=True)
+
+        # In both
+        (source / "same.txt").write_text("same")
+        (target / "same.txt").write_text("same")
+
+        # Only on source
+        (source / "only1.txt").write_text("only1")
+        (source / "only2.txt").write_text("only2")
+
+        # High-confidence moved (same name, same size)
+        (source / "moved.txt").write_text("moved")
+        (target / "other" / "moved.txt").parent.mkdir(exist_ok=True)
+        (target / "other" / "moved.txt").write_text("moved")
+
+        output_csv = base / "out.csv"
+
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(Path(__file__).parent / "filedrift.py"),
+                "--source",
+                str(source),
+                "--target",
+                str(target),
+                "--full-scan",
+                "--exclude-high-confidence-moved",
+                "--output",
+                str(output_csv),
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        assert result.returncode == 0, f"Expected exit code 0, got {result.returncode}"
+        assert "Excluding 1 high-confidence moved files from CSV output" in result.stdout, (
+            "Expected excluded count to reflect only high-confidence moved files"
+        )
+
+        return True
+
+
+def test_exclude_high_confidence_moved_note_text():
+    """Test summary note text for --exclude-high-confidence-moved."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        base = Path(temp_dir)
+        source = base / "source"
+        target = base / "target"
+        os.makedirs(source, exist_ok=True)
+        os.makedirs(target, exist_ok=True)
+
+        (source / "moved.txt").write_text("moved")
+        (target / "other" / "moved.txt").parent.mkdir(exist_ok=True)
+        (target / "other" / "moved.txt").write_text("moved")
+
+        output_csv = base / "out.csv"
+
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(Path(__file__).parent / "filedrift.py"),
+                "--source",
+                str(source),
+                "--target",
+                str(target),
+                "--full-scan",
+                "--exclude-high-confidence-moved",
+                "--output",
+                str(output_csv),
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        assert result.returncode == 0, f"Expected exit code 0, got {result.returncode}"
+        assert "use without --exclude-high-confidence-moved to include" in result.stdout, (
+            "Expected summary note to explain how to include high-confidence moved files"
+        )
+
+        return True
+
+
+def test_dry_run_missing_count_ignores_root_files():
+    """Test that dry-run missing count ignores root files with same name as missing subdir."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        base = Path(temp_dir)
+        source = base / "source"
+        target = base / "target"
+        os.makedirs(source, exist_ok=True)
+        os.makedirs(target, exist_ok=True)
+
+        # Root file whose name matches a missing subdir (case-insensitive)
+        (source / "photos").write_text("root file")
+
+        # Missing subdir with files (different case)
+        missing_subdir = source / "Photos"
+        try:
+            os.makedirs(missing_subdir, exist_ok=False)
+        except OSError:
+            # Case-insensitive filesystem; skip this test.
+            return True
+        (missing_subdir / "a.txt").write_text("a")
+        (missing_subdir / "b.txt").write_text("b")
+
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            filedrift.dry_run(str(source), str(target), full_scan=False)
+
+        stdout = output.getvalue()
+        assert "Estimated target files to scan: ~1" in stdout, (
+            "Estimated count should only exclude files under missing subdirs, not root files"
+        )
+
+        return True
+
+
 def test_case_insensitive_matching():
     """Test case-insensitive path matching - scan_directory normalizes paths to lowercase."""
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -466,7 +595,10 @@ def run_all_tests():
         ("Analyze missing directories", test_analyze_missing_directories),
         ("CSV output generation", test_csv_output),
         ("Exclude high-confidence moved flag", test_exclude_high_confidence_moved),
+        ("Exclude high-confidence moved count", test_exclude_high_confidence_moved_count_in_output),
+        ("Exclude high-confidence moved note text", test_exclude_high_confidence_moved_note_text),
         ("Case-insensitive matching", test_case_insensitive_matching),
+        ("Dry-run missing count ignores root files", test_dry_run_missing_count_ignores_root_files),
         ("Should ignore file function", test_should_ignore_file),
         ("Ignored files not scanned", test_ignored_files_not_scanned),
         ("Ignored files not in missing dirs", test_ignored_files_not_in_missing_dirs),
